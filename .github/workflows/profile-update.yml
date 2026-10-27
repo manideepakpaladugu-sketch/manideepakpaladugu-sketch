@@ -1,0 +1,64 @@
+name: Update GitHub Profile
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-profile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out profile repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update learning activity
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          readme = Path("README.md")
+          text = readme.read_text(encoding="utf-8")
+
+          start = "<!-- PROFILE-ACTIVITY:START -->"
+          end = "<!-- PROFILE-ACTIVITY:END -->"
+
+          if start in text and end in text:
+              section = (
+                  start + "\n"
+                  + "Last profile refresh: "
+                  + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                  + " UTC\n"
+                  + "Keep learning, practising, and building. 🌱\n"
+                  + end
+              )
+
+              before, remainder = text.split(start, 1)
+              _, after = remainder.split(end, 1)
+              readme.write_text(
+                  before + section + after,
+                  encoding="utf-8"
+              )
+          else:
+              print("Activity markers not found; README unchanged.")
+          PY
+
+      - name: Commit profile update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || (
+            git commit -m "Refresh profile activity"
+            git push
+          )
